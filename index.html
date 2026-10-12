@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Red Block Escape</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    color: white;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 {
+    margin-bottom: 10px;
+    font-size: 1.8rem;
+    text-shadow: 0 0 10px #ff4444;
+  }
+  #info {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+  }
+  #game-container {
+    position: relative;
+    background: #16213e;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    background: linear-gradient(180deg, #0f3460 0%, #16213e 100%);
+  }
+  #controls {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button {
+    background: #e94560;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+  }
+  button:hover {
+    background: #ff6b81;
+    transform: translateY(-2px);
+  }
+  button:active { transform: translateY(0); }
+  #level-select {
+    background: #0f3460;
+    color: white;
+    border: 2px solid #e94560;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+  .instructions {
+    margin-top: 20px;
+    max-width: 600px;
+    text-align: center;
+    color: #aaa;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  .win-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .win-overlay.show { display: flex; }
+  .win-overlay h2 {
+    font-size: 2.5rem;
+    color: #4ade80;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+  <h1>🟥 3D Red Block Escape</h1>
+  <div id="info">Nivel <span id="level-num">1</span> — Usa las flechas para mover el bloque</div>
+
+  <div id="game-container">
+    <canvas id="game" width="800" height="500"></canvas>
+    <div class="win-overlay" id="win">
+      <h2>¡Nivel completado!</h2>
+      <button onclick="nextLevel()">Siguiente nivel</button>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button onclick="resetLevel()">Reiniciar nivel</button>
+    <select id="level-select" onchange="loadLevel(this.value)">
+      <option value="0">Nivel 1</option>
+      <option value="1">Nivel 2</option>
+      <option value="2">Nivel 3</option>
+      <option value="3">Nivel 4</option>
+      <option value="4">Nivel 5</option>
+    </select>
+  </div>
+
+  <div class="instructions">
+    <strong>Cómo jugar:</strong> Mueve el bloque azul con las flechas del teclado.
+    Llega hasta el bloque <span style="color:#ff4444">rojo</span> para completar el nivel.
+    No puedes atravesar paredes (bloques grises).
+  </div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const TILE = 40;           // tamaño base del tile
+const ISO_W = TILE;        // ancho isométrico
+const ISO_H = TILE / 2;    // alto isométrico
+
+// Niveles: 0 = vacío, 1 = suelo, 2 = pared, 3 = meta (rojo), 4 = inicio
+const LEVELS = [
+  // Nivel 1 - tutorial
+  [
+    [2,2,2,2,2,2,2],
+    [2,1,1,1,1,1,2],
+    [2,1,2,2,2,1,2],
+    [2,1,1,4,1,1,2],
+    [2,2,2,1,2,2,2],
+    [2,1,1,1,1,3,2],
+    [2,2,2,2,2,2,2]
+  ],
+  // Nivel 2
+  [
+    [2,2,2,2,2,2,2,2],
+    [2,1,1,1,2,1,1,2],
+    [2,1,2,1,1,1,2,2],
+    [2,1,2,2,2,1,1,2],
+    [2,4,1,1,2,2,1,2],
+    [2,2,2,1,1,1,1,2],
+    [2,1,1,1,2,2,3,2],
+    [2,2,2,2,2,2,2,2]
+  ],
+  // Nivel 3
+  [
+    [2,2,2,2,2,2,2,2,2],
+    [2,1,1,1,1,1,1,1,2],
+    [2,1,2,2,1,2,2,1,2],
+    [2,1,2,1,1,1,2,1,2],
+    [2,1,1,1,4,1,1,1,2],
+    [2,1,2,1,1,1,2,1,2],
+    [2,1,2,2,1,2,2,1,2],
+    [2,1,1,1,1,1,1,3,2],
+    [2,2,2,2,2,2,2,2,2]
+  ],
+  // Nivel 4
+  [
+    [2,2,2,2,2,2,2,2,2,2],
+    [2,1,1,1,2,1,1,1,1,2],
+    [2,1,2,1,2,1,2,2,1,2],
+    [2,1,2,1,1,1,1,2,1,2],
+    [2,1,2,2,2,2,1,2,1,2],
+    [2,4,1,1,1,2,1,1,1,2],
+    [2,2,2,2,1,2,2,2,1,2],
+    [2,1,1,1,1,1,1,1,1,2],
+    [2,1,2,2,2,2,2,2,3,2],
+    [2,2,2,2,2,2,2,2,2,2]
+  ],
+  // Nivel 5
+  [
+    [2,2,2,2,2,2,2,2,2,2,2],
+    [2,1,1,1,1,1,1,1,1,1,2],
+    [2,1,2,2,2,1,2,2,2,1,2],
+    [2,1,1,1,2,1,2,1,1,1,2],
+    [2,2,2,1,2,1,2,1,2,2,2],
+    [2,1,1,1,1,4,1,1,1,1,2],
+    [2,2,2,1,2,1,2,1,2,2,2],
+    [2,1,1,1,2,1,2,1,1,1,2],
+    [2,1,2,2,2,1,2,2,2,1,2],
+    [2,1,1,1,1,1,1,1,1,3,2],
+    [2,2,2,2,2,2,2,2,2,2,2]
+  ]
+];
+
+let currentLevel = 0;
+let grid = [];
+let player = { x: 0, y: 0 };
+let moving = false;
+let offsetX = 0, offsetY = 0;
+
+function loadLevel(idx) {
+  currentLevel = parseInt(idx);
+  grid = LEVELS[currentLevel].map(row => [...row]);
+  document.getElementById('level-num').textContent = currentLevel + 1;
+  document.getElementById('level-select').value = currentLevel;
+  document.getElementById('win').classList.remove('show');
+
+  // encontrar inicio
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[y].length; x++) {
+      if (grid[y][x] === 4) {
+        player = { x, y };
+        grid[y][x] = 1; // convertir a suelo
+      }
+    }
+  }
+
+  // centrar
+  const rows = grid.length;
+  const cols = grid[0].length;
+  offsetX = canvas.width / 2 - (cols - rows) * ISO_W / 4;
+  offsetY = 80;
+
+  draw();
+}
+
+function iso(x, y) {
+  return {
+    x: offsetX + (x - y) * ISO_W / 2,
+    y: offsetY + (x + y) * ISO_H / 2
+  };
+}
+
+function drawTile(x, y, type, height = 0) {
+  const p = iso(x, y);
+  const topY = p.y - height;
+
+  // color según tipo
+  let top, left, right;
+  if (type === 2) { // pared
+    top = '#555'; left = '#333'; right = '#444';
+  } else if (type === 3) { // meta roja
+    top = '#ff3333'; left = '#cc0000'; right = '#ee1111';
+  } else { // suelo
+    top = '#4a90d9'; left = '#2a5a9a'; right = '#3a7ac0';
+  }
+
+  // cara superior
+  ctx.beginPath();
+  ctx.moveTo(p.x, topY);
+  ctx.lineTo(p.x + ISO_W / 2, topY + ISO_H / 2);
+  ctx.lineTo(p.x, topY + ISO_H);
+  ctx.lineTo(p.x - ISO_W / 2, topY + ISO_H / 2);
+  ctx.closePath();
+  ctx.fillStyle = top;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.stroke();
+
+  // cara izquierda
+  ctx.beginPath();
+  ctx.moveTo(p.x - ISO_W / 2, topY + ISO_H / 2);
+  ctx.lineTo(p.x, topY + ISO_H);
+  ctx.lineTo(p.x, topY + ISO_H + height);
+  ctx.lineTo(p.x - ISO_W / 2, topY + ISO_H / 2 + height);
+  ctx.closePath();
+  ctx.fillStyle = left;
+  ctx.fill();
+
+  // cara derecha
+  ctx.beginPath();
+  ctx.moveTo(p.x + ISO_W / 2, topY + ISO_H / 2);
+  ctx.lineTo(p.x, topY + ISO_H);
+  ctx.lineTo(p.x, topY + ISO_H + height);
+  ctx.lineTo(p.x + ISO_W / 2, topY + ISO_H / 2 + height);
+  ctx.closePath();
+  ctx.fillStyle = right;
+  ctx.fill();
+}
+
+function drawPlayer() {
+  const p = iso(player.x, player.y);
+  const h = 18;
+
+  // sombra
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y + ISO_H / 2 + 4, 14, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+
+  // bloque jugador (azul brillante)
+  const top = '#00d4ff';
+  const left = '#0099cc';
+  const right = '#00b8e6';
+
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - h);
+  ctx.lineTo(p.x + ISO_W / 2 - 4, p.y - h + ISO_H / 2);
+  ctx.lineTo(p.x, p.y - h + ISO_H);
+  ctx.lineTo(p.x - ISO_W / 2 + 4, p.y - h + ISO_H / 2);
+  ctx.closePath();
+  ctx.fillStyle = top;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(p.x - ISO_W / 2 + 4, p.y - h + ISO_H / 2);
+  ctx.lineTo(p.x, p.y - h + ISO_H);
+  ctx.lineTo(p.x, p.y + ISO_H / 2);
+  ctx.lineTo(p.x - ISO_W / 2 + 4, p.y + ISO_H / 2 - h + ISO_H / 2);
+  ctx.closePath();
+  ctx.fillStyle = left;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(p.x + ISO_W / 2 - 4, p.y - h + ISO_H / 2);
+  ctx.lineTo(p.x, p.y - h + ISO_H);
+  ctx.lineTo(p.x, p.y + ISO_H / 2);
+  ctx.lineTo(p.x + ISO_W / 2 - 4, p.y + ISO_H / 2 - h + ISO_H / 2);
+  ctx.closePath();
+  ctx.fillStyle = right;
+  ctx.fill();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // dibujar tiles de atrás hacia adelante (orden isométrico)
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[y].length; x++) {
+      const type = grid[y][x];
+      if (type === 0) continue;
+      const height = (type === 2) ? 20 : 6;
+      drawTile(x, y, type, height);
+    }
+  }
+
+  drawPlayer();
+}
+
+function canMove(nx, ny) {
+  if (ny < 0 || ny >= grid.length || nx < 0 || nx >= grid[0].length) return false;
+  const cell = grid[ny][nx];
+  return cell === 1 || cell === 3; // suelo o meta
+}
+
+function move(dx, dy) {
+  if (moving) return;
+  const nx = player.x + dx;
+  const ny = player.y + dy;
+  if (!canMove(nx, ny)) return;
+
+  moving = true;
+  player.x = nx;
+  player.y = ny;
+  draw();
+
+  // ¿llegó a la meta?
+  if (grid[ny][nx] === 3) {
+    setTimeout(() => {
+      document.getElementById('win').classList.add('show');
+    }, 200);
+  }
+
+  setTimeout(() => { moving = false; }, 120);
+}
+
+function resetLevel() {
+  loadLevel(currentLevel);
+}
+
+function nextLevel() {
+  if (currentLevel < LEVELS.length - 1) {
+    loadLevel(currentLevel + 1);
+  } else {
+    alert('¡Felicidades! Completaste todos los niveles.');
+    loadLevel(0);
+  }
+}
+
+// Controles
+document.addEventListener('keydown', e => {
+  if (document.getElementById('win').classList.contains('show')) return;
+  switch (e.key) {
+    case 'ArrowUp':    e.preventDefault(); move(0, -1); break;
+    case 'ArrowDown':  e.preventDefault(); move(0, 1);  break;
+    case 'ArrowLeft':  e.preventDefault(); move(-1, 0); break;
+    case 'ArrowRight': e.preventDefault(); move(1, 0);  break;
+  }
+});
+
+// Iniciar
+loadLevel(0);
+</script>
+</body>
+</html>
