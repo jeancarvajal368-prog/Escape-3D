@@ -38,7 +38,9 @@ button.ghost{background:rgba(255,255,255,.14);box-shadow:0 4px 0 rgba(0,0,0,.35)
 .pill{background:rgba(0,0,0,.35);padding:6px 14px;border-radius:99px;border:1px solid rgba(255,255,255,.2)}
 #hearts{font-size:1.3rem;letter-spacing:2px}
 .pop{animation:pulse .4s}@keyframes pulse{50%{transform:scale(1.4)}}
-#frame{position:relative;padding:14px;border-radius:20px;background:linear-gradient(var(--f1),var(--f2));box-shadow:0 12px 0 rgba(0,0,0,.5),0 28px 40px rgba(0,0,0,.55),inset 0 3px 0 rgba(255,255,255,.25);margin:0 auto}
+/* CORRECCIÓN: width:fit-content hace que el marco mida lo mismo que el tablero,
+   así la salida (#exit) queda pegada al borde derecho del tablero */
+#frame{position:relative;width:fit-content;padding:14px;border-radius:20px;background:linear-gradient(var(--f1),var(--f2));box-shadow:0 12px 0 rgba(0,0,0,.5),0 28px 40px rgba(0,0,0,.55),inset 0 3px 0 rgba(255,255,255,.25);margin:0 auto}
 #frame.shake{animation:shake .5s}
 @keyframes shake{20%{transform:translateX(-12px)}40%{transform:translateX(10px)}60%{transform:translateX(-7px)}80%{transform:translateX(5px)}}
 #board{position:relative;background-color:var(--board);border-radius:10px;touch-action:none;box-shadow:inset 0 6px 14px rgba(0,0,0,.5);background-image:linear-gradient(rgba(0,0,0,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.14) 1px,transparent 1px)}
@@ -67,16 +69,13 @@ button.ghost{background:rgba(255,255,255,.14);box-shadow:0 4px 0 rgba(0,0,0,.35)
 </head>
 <body>
 <div id="app">
- <header><h1>🟥 Escape 3D <small>3D</small></h1><button class="ghost" id="mute">🔊</button></header>
+ <header><h1>🟥 Red Block Escape <small>3D</small></h1><button class="ghost" id="mute">🔊</button></header>
  <div class="mister"><span class="bald">👨‍🦲</span> Jugando con el Mister Jean</div>
-
  <section id="menu" class="screen"><h2>🌍 Elige tu mundo</h2><div id="worlds"></div></section>
-
  <section id="lvls" class="screen hidden">
   <button class="ghost" onclick="show('menu')">← Mundos</button>
   <h2 id="wname"></h2><div id="lgrid"></div>
  </section>
-
  <section id="game" class="screen hidden">
   <div id="hud">
    <button class="ghost" onclick="openWorld(W)">☰</button>
@@ -92,7 +91,6 @@ button.ghost{background:rgba(255,255,255,.14);box-shadow:0 4px 0 rgba(0,0,0,.35)
 <div id="modal"><div id="mbox"></div></div>
 <div id="toast"></div>
 <canvas id="fx"></canvas>
-
 <script>
 const N=6,PAL=['#3b82f6','#f59e0b','#a855f7','#14b8a6','#ec4899','#84cc16','#06b6d4','#f97316'];
 const WORLDS=[
@@ -106,17 +104,14 @@ const PER=6, $=id=>document.getElementById(id);
 let W=0,L=0,lives=3,lv=null,pos=[],blocks=[],moves=0,limit=0,hist=[],locked=false,drag=null,cell=64,muted=false,prog={};
 try{prog=JSON.parse(localStorage.getItem('rbe3d')||'{}')}catch(e){}
 const save=()=>{try{localStorage.setItem('rbe3d',JSON.stringify(prog))}catch(e){}};
-
 /* ---------- Sonido ---------- */
 let AC;function beep(f,d=.12,t='sine',v=.15,at=0){if(muted)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime+at);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+at+d);o.connect(g);g.connect(AC.destination);o.start(AC.currentTime+at);o.stop(AC.currentTime+at+d)}catch(e){}}
 $('mute').onclick=()=>{muted=!muted;$('mute').textContent=muted?'🔇':'🔊'};
-
 /* ---------- Niveles (pre-verificados: todos tienen solución; el último número es el mínimo de movimientos) ---------- */
 const grid=(defs,s)=>{const g=Array.from({length:N},()=>Array(N).fill(0));defs.forEach((d,b)=>{for(let k=0;k<d.len;k++){const c=s[b]+k;if(d.dir==='h')g[d.fix][c]=b+1;else g[c][d.fix]=b+1}});return g};
 const at=(g,d,c)=>d.dir==='h'?g[d.fix][c]:g[c][d.fix];
 const DATA=[[[["h22","h23","v22","h31","h30","v24"],"011302",4],[["h22","v22","h20","h35","v34","v21"],"042324",5],[["h22","h35","v31","v23","v34","h20"],"023222",6],[["h22","h24","v32","h25","v20","v23","v23"],"0102431",7],[["h22","h21","h24","v32","v24","v20","h30"],"0420443",7],[["h22","v23","v24","v32","h33","h35","v25"],"0410104",8]],[[["h22","h35","h24","v33","v21","h23","v24"],"1120334",7],[["h22","v33","h24","v25","h23","h23","v21"],"1034423",8],[["h22","h20","v32","v23","h21","v25","h34"],"0401431",9],[["h22","h24","v23","v31","v34","v22","v30","h35"],"24331303",10],[["h22","v34","v33","h20","h21","h25","v32","h23"],"20311434",11],[["h22","h35","v33","v35","v20","v24","h33","h20"],"01104102",11]],[[["h22","h24","h20","v25","v22","v33","v21","v24"],"12440033",10],[["h22","v24","v23","v21","v24","v23","h24","v20"],"10244020",11],[["h22","h24","h25","v22","v34","v20","h33","v23"],"14341102",11],[["h22","v32","h23","h35","v24","h20","v23","v25","v25"],"323144024",12],[["h22","v23","v20","h24","v35","h31","v32","v21","h25"],"034123102",13],[["h22","v22","h34","v23","v20","h24","h20","h31","h23"],"103210034",16]],[[["h22","v35","h24","h33","h31","v30","h24","h35","h20","v34"],"0122034200",10],[["h22","v24","h30","v22","v20","v33","h35","v21","h24"],"133011242",11],[["h22","v30","h21","v25","v33","v21","v22","h35","h23"],"033324131",12],[["h22","v32","v33","v25","h24","h25","v34","v20","h23"],"000423141",15],[["h22","v25","v21","v22","h25","h31","v23","v22","h23","h24"],"0430032443",17],[["h22","h24","h21","v23","h30","v34","v23","h25","v22","v20"],"0401014124",19]],[[["h22","v20","v24","h20","v33","v20","v21","v22","v23","v24"],"0302300112",13],[["h22","v22","h35","v25","v20","v20","v33","h23","v22","v25"],"0314041011",14],[["h22","v21","v24","v20","h24","h31","v22","h20","v23","v24"],"0044122222",15],[["h22","v35","v20","v22","h31","v33","h24","v24","h25","h30"],"0102134142",16],[["h22","v25","v33","v22","v25","h25","v22","h24","v24","v21"],"0110322233",17],[["h22","v22","v24","h20","v24","h31","h23","v23","h24","v20"],"0230100124",18]]];
 function genLevel(w,l){const[ds,st,par]=DATA[w][l];return{defs:ds.map((t,i)=>({dir:t[0],len:+t[1],fix:+t[2],p:i?0:4})),start:st.split('').map(Number),par}}
-
 /* ---------- Pantallas ---------- */
 function show(id){['menu','lvls','game'].forEach(s=>$(s).classList.toggle('hidden',s!==id));if(id==='menu')renderMenu()}
 const stars=(w,l)=>prog[w+'-'+l]||0;
@@ -126,7 +121,6 @@ function renderMenu(){theme(0);$('worlds').innerHTML='';WORLDS.forEach((t,w)=>{l
 function openWorld(w){W=w;theme(w);$('wname').textContent=WORLDS[w].e+' Mundo '+(w+1)+': '+WORLDS[w].n;const g=$('lgrid');g.innerHTML='';for(let l=0;l<PER;l++){const d=document.createElement('div'),o=lOpen(w,l);d.className='lv'+(o?'':' lock');d.innerHTML=(o?l+1:'🔒')+`<small>${o?'★'.repeat(stars(w,l))+'☆'.repeat(3-stars(w,l)):''}</small>`;d.onclick=()=>{if(!o)return;lives=3;startLevel(w,l)};g.appendChild(d)}show('lvls')}
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t.h);t.h=setTimeout(()=>t.style.display='none',1800)}
 function modal(html,btns){$('mbox').innerHTML=html+'<div class="row"></div>';btns.forEach(([t,f,g])=>{const b=document.createElement('button');b.textContent=t;if(g)b.className='ghost';b.onclick=()=>{$('modal').classList.remove('show');f()};$('mbox').lastChild.appendChild(b)});$('modal').classList.add('show')}
-
 /* ---------- Juego ---------- */
 const D=()=>lv.defs;
 function xy(i,p=pos[i]){const d=D()[i];return d.dir==='h'?[p,d.fix]:[d.fix,p]}
@@ -137,7 +131,6 @@ function startLevel(w,l){W=w;L=l;theme(w);lv=genLevel(w,l);pos=lv.start.slice();
  show('game');size();hud()}
 function hud(){$('ttl').textContent=WORLDS[W].e+' '+(W+1)+'-'+(L+1);$('hearts').textContent='❤️'.repeat(lives)+'🖤'.repeat(5-lives);$('mv').textContent=moves;$('lim').textContent=limit;$('par').textContent=lv.par}
 function range(i){const d=D()[i],g=grid(D(),pos);let lo=0,hi=0,p=pos[i]-1;while(p>=0&&!at(g,d,p)){lo--;p--}p=pos[i]+d.len;while(p<N&&!at(g,d,p)){hi++;p++}return[lo,hi]}
-
 const bd=$('board');
 bd.addEventListener('pointerdown',e=>{if(locked)return;const el=e.target.closest('.b');if(!el)return;const i=+el.dataset.i,[lo,hi]=range(i);drag={i,sx:e.clientX,sy:e.clientY,lo,hi,d:0,p0:pos[i]};el.classList.add('drag');bd.setPointerCapture(e.pointerId);beep(300,.05,'triangle',.08)});
 bd.addEventListener('pointermove',e=>{if(!drag)return;const d=D()[drag.i],h=d.dir==='h';let k=(h?e.clientX-drag.sx:e.clientY-drag.sy)/cell;k=Math.max(drag.lo,Math.min(drag.hi,k));drag.d=k;blocks[drag.i].style[h?'left':'top']=(drag.p0+k)*cell+3+'px'});
@@ -147,7 +140,6 @@ function endDrag(){if(!drag)return;const{i}=drag,s=Math.round(drag.d);blocks[i].
  if(pos[0]===4)return win();
  if(moves>=limit)loseLife()}
 bd.addEventListener('pointerup',endDrag);bd.addEventListener('pointercancel',endDrag);
-
 function win(){locked=true;const r=blocks[0];r.classList.add('out');r.style.left=(N+1)*cell+'px';
  const st=moves<=lv.par?3:moves<=Math.ceil(lv.par*1.3)?2:1;
  if(st>stars(W,L)){prog[W+'-'+L]=st;save()}
@@ -156,21 +148,17 @@ function win(){locked=true;const r=blocks[0];r.classList.add('out');r.style.left
  setTimeout(()=>{const last=L===PER-1,wLast=W===WORLDS.length-1;
   const next=last?(wLast?['🏆 Menú',()=>show('menu')]:['Siguiente mundo ▶',()=>{lives=Math.max(lives,3);openWorld(W+1)}]):['Siguiente ▶',()=>startLevel(W,L+1)];
   modal(`<h2>${last?'🎉 ¡Mundo completado!':'¡Nivel completado!'}</h2><div class="st">${[1,2,3].map(k=>`<span style="animation-delay:${k*.2}s;opacity:${k<=st?1:.25}">⭐</span>`).join('')}</div><p>${moves} movimientos (par ${lv.par})</p>${bonus}`,[next,['Repetir',()=>startLevel(W,L),1],['Niveles',()=>openWorld(W),1]])},900)}
-
 function loseLife(){locked=true;lives--;hud();$('hearts').classList.add('pop');const f=$('frame');f.classList.add('shake');beep(180,.3,'sawtooth',.18);beep(120,.4,'sawtooth',.18,.15);
  setTimeout(()=>{f.classList.remove('shake');$('hearts').classList.remove('pop');
   if(lives<=0)modal('<h2>💔 Sin vidas</h2><p>¡Inténtalo otra vez! Recuperas tus vidas.</p>',[['Reintentar',()=>{lives=3;startLevel(W,L)}],['Niveles',()=>openWorld(W),1]]);
   else{toast('¡Te pasaste del límite! −1 ❤️');startLevel(W,L)}},700)}
-
 $('undo').onclick=()=>{if(locked||!hist.length)return;const h=hist.pop();pos[h.i]=h.p;moves--;place(h.i);$('mv').textContent=moves};
 $('reset').onclick=()=>{if(!locked)startLevel(W,L)};
 addEventListener('resize',size);
-
 /* ---------- Confeti ---------- */
 const cv=$('fx'),cx=cv.getContext('2d');let ps=[];
 function confetti(){cv.width=innerWidth;cv.height=innerHeight;for(let i=0;i<140;i++)ps.push({x:innerWidth/2,y:innerHeight/2,vx:(Math.random()-.5)*16,vy:Math.random()*-14-3,s:5+Math.random()*7,c:`hsl(${Math.random()*360},90%,60%)`,r:Math.random()*6});if(ps.length===140)loop()}
 function loop(){cx.clearRect(0,0,cv.width,cv.height);ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.35;p.r+=.2;cx.fillStyle=p.c;cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);cx.restore()});ps=ps.filter(p=>p.y<cv.height+20);if(ps.length)requestAnimationFrame(loop);else cx.clearRect(0,0,cv.width,cv.height)}
-
 show('menu');
 </script>
 </body>
